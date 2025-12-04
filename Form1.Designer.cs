@@ -46,9 +46,9 @@
             // btnLogin
             // 
             this.btnLogin.Font = new System.Drawing.Font("Comic Sans MS", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.btnLogin.Location = new System.Drawing.Point(59, 356);
+            this.btnLogin.Location = new System.Drawing.Point(108, 421);
             this.btnLogin.Name = "btnLogin";
-            this.btnLogin.Size = new System.Drawing.Size(103, 44);
+            this.btnLogin.Size = new System.Drawing.Size(163, 44);
             this.btnLogin.TabIndex = 0;
             this.btnLogin.Text = "Войти";
             this.btnLogin.UseVisualStyleBackColor = true;
@@ -56,39 +56,39 @@
             // btnGuest
             // 
             this.btnGuest.Font = new System.Drawing.Font("Comic Sans MS", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.btnGuest.Location = new System.Drawing.Point(173, 356);
+            this.btnGuest.Location = new System.Drawing.Point(282, 421);
             this.btnGuest.Name = "btnGuest";
-            this.btnGuest.Size = new System.Drawing.Size(103, 44);
+            this.btnGuest.Size = new System.Drawing.Size(155, 44);
             this.btnGuest.TabIndex = 1;
             this.btnGuest.Text = "Войти как гость";
             this.btnGuest.UseVisualStyleBackColor = true;
             // 
             // txtCaptcha
             // 
-            this.txtCaptcha.Location = new System.Drawing.Point(59, 294);
+            this.txtCaptcha.Location = new System.Drawing.Point(108, 358);
             this.txtCaptcha.Name = "txtCaptcha";
-            this.txtCaptcha.Size = new System.Drawing.Size(217, 20);
+            this.txtCaptcha.Size = new System.Drawing.Size(329, 22);
             this.txtCaptcha.TabIndex = 2;
             // 
             // txtLogin
             // 
-            this.txtLogin.Location = new System.Drawing.Point(59, 85);
+            this.txtLogin.Location = new System.Drawing.Point(108, 151);
             this.txtLogin.Name = "txtLogin";
-            this.txtLogin.Size = new System.Drawing.Size(217, 20);
+            this.txtLogin.Size = new System.Drawing.Size(329, 22);
             this.txtLogin.TabIndex = 3;
             // 
             // txtPassword
             // 
-            this.txtPassword.Location = new System.Drawing.Point(59, 135);
+            this.txtPassword.Location = new System.Drawing.Point(108, 201);
             this.txtPassword.Name = "txtPassword";
-            this.txtPassword.Size = new System.Drawing.Size(217, 20);
+            this.txtPassword.Size = new System.Drawing.Size(329, 22);
             this.txtPassword.TabIndex = 4;
             // 
             // picCaptcha
             // 
-            this.picCaptcha.Location = new System.Drawing.Point(59, 188);
+            this.picCaptcha.Location = new System.Drawing.Point(108, 241);
             this.picCaptcha.Name = "picCaptcha";
-            this.picCaptcha.Size = new System.Drawing.Size(217, 100);
+            this.picCaptcha.Size = new System.Drawing.Size(329, 100);
             this.picCaptcha.TabIndex = 5;
             this.picCaptcha.TabStop = false;
             // 
@@ -96,9 +96,9 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Comic Sans MS", 26.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.label1.Location = new System.Drawing.Point(40, 9);
+            this.label1.Location = new System.Drawing.Point(57, 9);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(345, 49);
+            this.label1.Size = new System.Drawing.Size(432, 61);
             this.label1.TabIndex = 6;
             this.label1.Text = "Добро пожаловать!";
             this.label1.Click += new System.EventHandler(this.label1_Click);
@@ -107,28 +107,29 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Comic Sans MS", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.label2.Location = new System.Drawing.Point(149, 69);
+            this.label2.Location = new System.Drawing.Point(249, 129);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(40, 15);
+            this.label2.Size = new System.Drawing.Size(51, 19);
             this.label2.TabIndex = 7;
             this.label2.Text = "Логин";
+            this.label2.Click += new System.EventHandler(this.label2_Click);
             // 
             // label3
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Comic Sans MS", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.label3.Location = new System.Drawing.Point(149, 117);
+            this.label3.Location = new System.Drawing.Point(249, 176);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(48, 15);
+            this.label3.Size = new System.Drawing.Size(60, 19);
             this.label3.TabIndex = 8;
             this.label3.Text = "Пароль";
             // 
             // btnRefreshCaptcha
             // 
             this.btnRefreshCaptcha.Font = new System.Drawing.Font("Comic Sans MS", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.btnRefreshCaptcha.Location = new System.Drawing.Point(59, 327);
+            this.btnRefreshCaptcha.Location = new System.Drawing.Point(108, 392);
             this.btnRefreshCaptcha.Name = "btnRefreshCaptcha";
-            this.btnRefreshCaptcha.Size = new System.Drawing.Size(217, 23);
+            this.btnRefreshCaptcha.Size = new System.Drawing.Size(329, 23);
             this.btnRefreshCaptcha.TabIndex = 9;
             this.btnRefreshCaptcha.Text = "Обновить CAPTCHA";
             this.btnRefreshCaptcha.UseVisualStyleBackColor = true;
@@ -139,7 +140,7 @@
             this.lblBlockTimer.AutoSize = true;
             this.lblBlockTimer.Location = new System.Drawing.Point(385, 493);
             this.lblBlockTimer.Name = "lblBlockTimer";
-            this.lblBlockTimer.Size = new System.Drawing.Size(0, 13);
+            this.lblBlockTimer.Size = new System.Drawing.Size(0, 16);
             this.lblBlockTimer.TabIndex = 10;
             // 
             // Form1

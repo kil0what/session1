@@ -13,46 +13,97 @@ namespace SportsGoodsApp
         private int blockSecondsRemaining = 0;
         private int failedAttempts = 0;
         private DateTime? blockedUntil = null;
+        private PictureBox logoPictureBox;
 
         public Form1()
         {
             InitializeComponent();
-            SetupForm();
+
+            // УБИРАЕМ SetupForm() отсюда - он конфликтует с дизайнером
+            // SetupForm();
+
+            LoadLogo(); // Оставляем только логотип
+            SetupEventHandlers(); // Добавляем обработчики
+            ApplyStyles(); // Применяем стили БЕЗ изменения позиций
         }
 
-        private void SetupForm()
+        private void LoadLogo()
         {
-            // Настройка таймера
+            try
+            {
+                // Создаем PictureBox для логотипа
+                logoPictureBox = new PictureBox
+                {
+                    Size = new Size(200, 60),
+                    Location = new Point((this.ClientSize.Width - 200) / 2, 20),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    Anchor = AnchorStyles.Top
+                };
+
+                // Если файл логотипа существует, загружаем его
+                if (System.IO.File.Exists("Resources/logo.png"))
+                {
+                    logoPictureBox.Image = Image.FromFile("Resources/logo.png");
+                }
+                else
+                {
+                    //
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки логотипа: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void SetupEventHandlers()
+        {
+            // Привязываем обработчики к кнопкам
+            btnLogin.Click += BtnLogin_Click;
+            btnGuest.Click += BtnGuest_Click;
+            btnRefreshCaptcha.Click += BtnRefreshCaptcha_Click;
+
+            // Скрываем CAPTCHA при запуске
+            picCaptcha.Visible = false;
+            txtCaptcha.Visible = false;
+            btnRefreshCaptcha.Visible = false;
+
+            // Инициализируем таймер
             blockTimer = new Timer();
             blockTimer.Interval = 1000;
             blockTimer.Tick += BlockTimer_Tick;
+        }
 
-            // Стили
+        private void ApplyStyles()
+        {
+            // Применяем только стили, НЕ меняем расположение!
+
+            // Форма
             this.Text = "ООО Спортивные товары - Вход";
             this.Font = new Font("Comic Sans MS", 10);
             this.BackColor = Color.White;
-            this.Size = new Size(400, 450);
 
             // Кнопка Войти
-            btnLogin.BackColor = Color.FromArgb(73, 140, 81);
+            btnLogin.BackColor = Color.FromArgb(73, 140, 81); // Акцентный цвет
             btnLogin.ForeColor = Color.White;
             btnLogin.FlatStyle = FlatStyle.Flat;
+            btnLogin.Font = new Font("Comic Sans MS", 10, FontStyle.Bold);
 
             // Кнопка Гость
-            btnGuest.BackColor = Color.FromArgb(118, 227, 131);
+            btnGuest.BackColor = Color.FromArgb(118, 227, 131); // Дополнительный цвет
             btnGuest.ForeColor = Color.Black;
             btnGuest.FlatStyle = FlatStyle.Flat;
+            btnGuest.Font = new Font("Comic Sans MS", 10);
 
-            // Скрыть CAPTCHA при запуске
-            if (txtCaptcha != null) txtCaptcha.Visible = false;
-            if (picCaptcha != null) picCaptcha.Visible = false;
-            if (btnRefreshCaptcha != null) btnRefreshCaptcha.Visible = false;
+            // Кнопка обновления CAPTCHA
+            btnRefreshCaptcha.BackColor = Color.LightGray;
+            btnRefreshCaptcha.FlatStyle = FlatStyle.Flat;
 
-            // Обработчики
-            btnLogin.Click += BtnLogin_Click;
-            btnGuest.Click += BtnGuest_Click;
-            if (btnRefreshCaptcha != null)
-                btnRefreshCaptcha.Click += BtnRefreshCaptcha_Click;
+            // Поля ввода
+            txtLogin.Font = new Font("Comic Sans MS", 10);
+            txtPassword.Font = new Font("Comic Sans MS", 10);
+            txtCaptcha.Font = new Font("Comic Sans MS", 10);
         }
 
         // ВХОД
@@ -81,7 +132,8 @@ namespace SportsGoodsApp
             // Проверка блокировки
             if (blockedUntil.HasValue && blockedUntil > DateTime.Now)
             {
-                MessageBox.Show($"Аккаунт заблокирован. Осталось: {(blockedUntil.Value - DateTime.Now).Seconds} сек",
+                int seconds = (int)(blockedUntil.Value - DateTime.Now).TotalSeconds;
+                MessageBox.Show($"Аккаунт заблокирован. Осталось: {seconds} сек",
                     "Блокировка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -98,12 +150,8 @@ namespace SportsGoodsApp
             // Проверка логина/пароля
             if (CheckLogin(login, password))
             {
-                MessageBox.Show("Вход выполнен успешно!", "Успех",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                failedAttempts = 0;
-                captchaRequired = false;
-                HideCaptchaControls();
+                // Успешный вход - открываем главное окно
+                OpenMainWindow();
             }
             else
             {
@@ -111,7 +159,7 @@ namespace SportsGoodsApp
 
                 if (failedAttempts >= 2)
                 {
-                    // Блокировка
+                    // Блокировка на 10 секунд
                     blockedUntil = DateTime.Now.AddSeconds(10);
                     blockSecondsRemaining = 10;
                     StartBlockTimer();
@@ -135,64 +183,88 @@ namespace SportsGoodsApp
                 }
             }
         }
-
-        // Проверка логина/пароля (заглушка)
         private bool CheckLogin(string login, string password)
         {
+            // Ищем пользователя в базе
+            var user = FakeDatabase.Users.FirstOrDefault(u =>
+                u.Login.Equals(login, StringComparison.OrdinalIgnoreCase) &&
+                u.Password == password);
+
+            if (user != null)
+            {
+                Session.CurrentUser = new User
+                {
+                    Id = user.Id,
+                    Login = user.Login,
+                    Role = user.Role,
+                    FullName = user.FullName
+                };
+                return true;
+            }
+
+            // Также проверяем старые тестовые аккаунты (можно удалить после тестирования)
             if (login == "admin" && password == "admin123")
             {
-                Session.CurrentUser = new User { Id = 1, Login = "admin", Role = "Admin", FullName = "Администратор" };
+                Session.CurrentUser = new User
+                {
+                    Id = 1,
+                    Login = "admin",
+                    Role = "Admin",
+                    FullName = "Пахомова Аиша Анатольевна"
+                };
                 return true;
             }
             if (login == "manager" && password == "manager123")
             {
-                Session.CurrentUser = new User { Id = 2, Login = "manager", Role = "Manager", FullName = "Менеджер" };
+                Session.CurrentUser = new User
+                {
+                    Id = 4,
+                    Login = "manager",
+                    Role = "Manager",
+                    FullName = "Григорьева Арина Арсентьевна"
+                };
                 return true;
             }
             if (login == "client" && password == "client123")
             {
-                Session.CurrentUser = new User { Id = 3, Login = "client", Role = "Client", FullName = "Клиент" };
+                Session.CurrentUser = new User
+                {
+                    Id = 7,
+                    Login = "client",
+                    Role = "Client",
+                    FullName = "Поляков Степан Егорович"
+                };
                 return true;
             }
+
             return false;
         }
-
         // ГОСТЬ
         private void BtnGuest_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("Добро пожаловать в гостевой режим!\nВы можете просматривать товары без авторизации.",
-                "Гость", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        // ДОБАВЬТЕ ЭТОТ МЕТОД (если его нет):
-        private void BtnRefreshCaptcha_Click(object sender, EventArgs e)
-        {
-            GenerateCaptcha();
-        }
-
-        // ПОКАЗАТЬ CAPTCHA
-        private void ShowCaptchaControls()
-        {
-            if (txtCaptcha != null) txtCaptcha.Visible = true;
-            if (picCaptcha != null) picCaptcha.Visible = true;
-            if (btnRefreshCaptcha != null) btnRefreshCaptcha.Visible = true;
-
-            GenerateCaptcha();
-        }
-
-        // СКРЫТЬ CAPTCHA
-        private void HideCaptchaControls()
-        {
-            if (txtCaptcha != null)
+            Session.CurrentUser = new User
             {
-                txtCaptcha.Visible = false;
-                txtCaptcha.Text = "";
-            }
-            if (picCaptcha != null) picCaptcha.Visible = false;
-            if (btnRefreshCaptcha != null) btnRefreshCaptcha.Visible = false;
+                Id = 0,
+                Login = "guest",
+                Role = "Guest",
+                FullName = "Гость"
+            };
+
+            OpenMainWindow();
         }
 
-        // ГЕНЕРАЦИЯ CAPTCHA
+        private void OpenMainWindow()
+        {
+            // Закрываем текущее окно входа
+            this.Hide();
+
+            // Открываем главное окно
+            MainForm mainForm = new MainForm();
+            mainForm.FormClosed += (s, args) => this.Close();
+            mainForm.Show();
+        }
+
+        // ГЕНЕРАЦИЯ CAPTCHA (исправленная)
         private void GenerateCaptcha()
         {
             if (picCaptcha == null) return;
@@ -211,24 +283,43 @@ namespace SportsGoodsApp
                 // Рисуем символы
                 for (int i = 0; i < 4; i++)
                 {
-                    int x = 10 + i * 30 + rand.Next(-5, 5);
-                    int y = 10 + rand.Next(-5, 5);
+                    int x = 10 + i * 40 + rand.Next(-10, 10);
+                    int y = 20 + rand.Next(-10, 10);
 
                     g.TranslateTransform(x, y);
-                    g.RotateTransform(rand.Next(-30, 30));
-                    g.DrawString(generatedCaptcha[i].ToString(), font, Brushes.Black, 0, 0);
-                    g.ResetTransform();
+                    float angle = rand.Next(-30, 30);
+                    g.RotateTransform(angle);
 
-                    // Линии
-                    g.DrawLine(Pens.Gray, x - 5, y + 15, x + 25, y + 15);
+                    // Рисуем символ
+                    g.DrawString(generatedCaptcha[i].ToString(), font, Brushes.Black, 0, 0);
+
+                    // Перечеркивание (50% шанс)
+                    if (rand.Next(2) == 0)
+                    {
+                        g.DrawLine(new Pen(Color.Red, 1), -5, 20, 30, -5);
+                    }
+
+                    g.ResetTransform();
                 }
 
-                // Шум
-                for (int i = 0; i < 100; i++)
+                // Графический шум - линии
+                for (int i = 0; i < 20; i++)
                 {
-                    int x = rand.Next(bmp.Width);
-                    int y = rand.Next(bmp.Height);
-                    bmp.SetPixel(x, y, Color.FromArgb(rand.Next(100, 200), rand.Next(100, 200), rand.Next(100, 200)));
+                    g.DrawLine(
+                        new Pen(Color.FromArgb(rand.Next(150, 200), rand.Next(150, 200), rand.Next(150, 200)), 1),
+                        rand.Next(bmp.Width), rand.Next(bmp.Height),
+                        rand.Next(bmp.Width), rand.Next(bmp.Height)
+                    );
+                }
+
+                // Точечный шум
+                for (int i = 0; i < 300; i++)
+                {
+                    bmp.SetPixel(
+                        rand.Next(bmp.Width),
+                        rand.Next(bmp.Height),
+                        Color.FromArgb(rand.Next(150, 200), rand.Next(150, 200), rand.Next(150, 200))
+                    );
                 }
             }
 
@@ -236,6 +327,34 @@ namespace SportsGoodsApp
                 picCaptcha.Image.Dispose();
 
             picCaptcha.Image = bmp;
+        }
+
+        // ПОКАЗАТЬ CAPTCHA
+        private void ShowCaptchaControls()
+        {
+            picCaptcha.Visible = true;
+            txtCaptcha.Visible = true;
+            btnRefreshCaptcha.Visible = true;
+
+            txtCaptcha.Text = "";
+            txtCaptcha.Focus();
+
+            GenerateCaptcha();
+        }
+
+        // СКРЫТЬ CAPTCHA
+        private void HideCaptchaControls()
+        {
+            picCaptcha.Visible = false;
+            txtCaptcha.Visible = false;
+            txtCaptcha.Text = "";
+            btnRefreshCaptcha.Visible = false;
+        }
+
+        // ОБНОВИТЬ CAPTCHA
+        private void BtnRefreshCaptcha_Click(object sender, EventArgs e)
+        {
+            GenerateCaptcha();
         }
 
         // ТАЙМЕР БЛОКИРОВКИ
@@ -248,12 +367,15 @@ namespace SportsGoodsApp
                 blockTimer.Stop();
                 EnableControls();
                 this.Text = "ООО Спортивные товары - Вход";
+                lblBlockTimer.Text = "";
+
                 MessageBox.Show("Блокировка снята", "Информация",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
                 this.Text = $"Блокировка: {blockSecondsRemaining} сек";
+                lblBlockTimer.Text = $"Блокировка: {blockSecondsRemaining} сек";
             }
         }
 
@@ -261,10 +383,10 @@ namespace SportsGoodsApp
         {
             txtLogin.Enabled = false;
             txtPassword.Enabled = false;
-            if (txtCaptcha != null) txtCaptcha.Enabled = false;
+            txtCaptcha.Enabled = false;
             btnLogin.Enabled = false;
             btnGuest.Enabled = false;
-            if (btnRefreshCaptcha != null) btnRefreshCaptcha.Enabled = false;
+            btnRefreshCaptcha.Enabled = false;
 
             blockTimer.Start();
         }
@@ -273,13 +395,12 @@ namespace SportsGoodsApp
         {
             txtLogin.Enabled = true;
             txtPassword.Enabled = true;
-            if (txtCaptcha != null) txtCaptcha.Enabled = true;
+            txtCaptcha.Enabled = true;
             btnLogin.Enabled = true;
             btnGuest.Enabled = true;
-            if (btnRefreshCaptcha != null) btnRefreshCaptcha.Enabled = true;
+            btnRefreshCaptcha.Enabled = true;
         }
 
-        // Закрытие формы
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             if (picCaptcha != null && picCaptcha.Image != null)
@@ -290,7 +411,17 @@ namespace SportsGoodsApp
 
         private void label1_Click(object sender, EventArgs e)
         {
+            // Пустой метод
+        }
 
+        private void label2_Click(object sender, EventArgs e)
+        {
+            // Пустой метод
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // Можно оставить пустым или добавить инициализацию
         }
     }
 }
