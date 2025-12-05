@@ -12,7 +12,6 @@ namespace SportsGoodsApp
         public static string connectionString =
             @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=SportsGoodsDB_Cyrillic;Integrated Security=True;Connect Timeout=3;";
 
-        // Проверяем существование столбцов
         private static bool CheckColumnExists(string tableName, string columnName)
         {
             try
@@ -38,6 +37,128 @@ namespace SportsGoodsApp
                 return false;
             }
         }
+public static bool ImportUsersFromExcel()
+{
+    try
+    {
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        {
+            connection.Open();
+            
+            // Проверяем, есть ли уже пользователи
+            string checkQuery = "SELECT COUNT(*) FROM Users";
+            using (SqlCommand checkCmd = new SqlCommand(checkQuery, connection))
+            {
+                int existingUsers = Convert.ToInt32(checkCmd.ExecuteScalar());
+                if (existingUsers > 0)
+                {
+                    MessageBox.Show($"В базе уже есть {existingUsers} пользователей. Импорт не требуется.",
+                        "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return true;
+                }
+            }
+            
+            // SQL для добавления пользователей
+            string insertQuery = @"
+                INSERT INTO Users (Login, Password, FullName, Role, Email) VALUES
+                (@Login1, @Password1, @FullName1, @Role1, @Email1),
+                (@Login2, @Password2, @FullName2, @Role2, @Email2),
+                (@Login3, @Password3, @FullName3, @Role3, @Email3),
+                (@Login4, @Password4, @FullName4, @Role4, @Email4),
+                (@Login5, @Password5, @FullName5, @Role5, @Email5),
+                (@Login6, @Password6, @FullName6, @Role6, @Email6),
+                (@Login7, @Password7, @FullName7, @Role7, @Email7),
+                (@Login8, @Password8, @FullName8, @Role8, @Email8),
+                (@Login9, @Password9, @FullName9, @Role9, @Email9),
+                (@Login10, @Password10, @FullName10, @Role10, @Email10)";
+            
+            using (SqlCommand command = new SqlCommand(insertQuery, connection))
+            {
+                // Пользователь 1
+                command.Parameters.AddWithValue("@Login1", "m4ic8j5qgstw@gmail.com");
+                command.Parameters.AddWithValue("@Password1", "2L6KZG");
+                command.Parameters.AddWithValue("@FullName1", "Пахомова Аиша Анатольевна");
+                command.Parameters.AddWithValue("@Role1", "Администратор");
+                command.Parameters.AddWithValue("@Email1", "m4ic8j5qgstw@gmail.com");
+                
+                // Пользователь 2
+                command.Parameters.AddWithValue("@Login2", "d43zfg9tlsyv@gmail.com");
+                command.Parameters.AddWithValue("@Password2", "uzWC67");
+                command.Parameters.AddWithValue("@FullName2", "Жуков Роман Богданович");
+                command.Parameters.AddWithValue("@Role2", "Администратор");
+                command.Parameters.AddWithValue("@Email2", "d43zfg9tlsyv@gmail.com");
+                
+                // Пользователь 3
+                command.Parameters.AddWithValue("@Login3", "8ohgisf6k45w@outlook.com");
+                command.Parameters.AddWithValue("@Password3", "8ntwUp");
+                command.Parameters.AddWithValue("@FullName3", "Киселева Анастасия Максимовна");
+                command.Parameters.AddWithValue("@Role3", "Администратор");
+                command.Parameters.AddWithValue("@Email3", "8ohgisf6k45w@outlook.com");
+                
+                // Пользователь 4
+                command.Parameters.AddWithValue("@Login4", "hi1brwj46czx@mail.com");
+                command.Parameters.AddWithValue("@Password4", "YOYhfR");
+                command.Parameters.AddWithValue("@FullName4", "Григорьева Арина Арсентьевна");
+                command.Parameters.AddWithValue("@Role4", "Менеджер");
+                command.Parameters.AddWithValue("@Email4", "hi1brwj46czx@mail.com");
+                
+                // Пользователь 5
+                command.Parameters.AddWithValue("@Login5", "fvkbcamhlj52@gmail.com");
+                command.Parameters.AddWithValue("@Password5", "RSbvHv");
+                command.Parameters.AddWithValue("@FullName5", "Иванов Лев Михайлович");
+                command.Parameters.AddWithValue("@Role5", "Менеджер");
+                command.Parameters.AddWithValue("@Email5", "fvkbcamhlj52@gmail.com");
+                
+                // Пользователь 6
+                command.Parameters.AddWithValue("@Login6", "9qxnce8jwruv@gmail.com");
+                command.Parameters.AddWithValue("@Password6", "rwVDh9");
+                command.Parameters.AddWithValue("@FullName6", "Григорьев Лев Давидович");
+                command.Parameters.AddWithValue("@Role6", "Менеджер");
+                command.Parameters.AddWithValue("@Email6", "9qxnce8jwruv@gmail.com");
+                
+                // Пользователь 7
+                command.Parameters.AddWithValue("@Login7", "dotiex942p1r@gmail.com");
+                command.Parameters.AddWithValue("@Password7", "LdNyos");
+                command.Parameters.AddWithValue("@FullName7", "Поляков Степан Егорович");
+                command.Parameters.AddWithValue("@Role7", "Клиент");
+                command.Parameters.AddWithValue("@Email7", "dotiex942p1r@gmail.com");
+                
+                // Пользователь 8
+                command.Parameters.AddWithValue("@Login8", "n0bmi2h1xral@tutanota.com");
+                command.Parameters.AddWithValue("@Password8", "gynQMT");
+                command.Parameters.AddWithValue("@FullName8", "Леонова Алиса Кирилловна");
+                command.Parameters.AddWithValue("@Role8", "Клиент");
+                command.Parameters.AddWithValue("@Email8", "n0bmi2h1xral@tutanota.com");
+                
+                // Пользователь 9
+                command.Parameters.AddWithValue("@Login9", "sfm3t278kdvz@yahoo.com");
+                command.Parameters.AddWithValue("@Password9", "AtnDjr");
+                command.Parameters.AddWithValue("@FullName9", "Яковлев Платон Константинович");
+                command.Parameters.AddWithValue("@Role9", "Клиент");
+                command.Parameters.AddWithValue("@Email9", "sfm3t278kdvz@yahoo.com");
+                
+                // Пользователь 10
+                command.Parameters.AddWithValue("@Login10", "ilb8rdut0v7e@mail.com");
+                command.Parameters.AddWithValue("@Password10", "JlFRCZ");
+                command.Parameters.AddWithValue("@FullName10", "Ковалева Ева Яковлевна");
+                command.Parameters.AddWithValue("@Role10", "Клиент");
+                command.Parameters.AddWithValue("@Email10", "ilb8rdut0v7e@mail.com");
+                
+                int rowsAffected = command.ExecuteNonQuery();
+                MessageBox.Show($"Импортировано {rowsAffected} пользователей", 
+                    "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return rowsAffected > 0;
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"Ошибка импорта пользователей: {ex.Message}", 
+            "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        return false;
+    }
+}
+
 
         // 1. Асинхронная аутентификация
         public static async Task<User> AuthenticateUserAsync(string login, string password)
