@@ -16,6 +16,7 @@ namespace SportsGoodsApp
         public BaseForm()
         {
             InitializeBaseForm();
+            LogoHelper.ApplyIcon(this);
         }
 
         private void InitializeBaseForm()

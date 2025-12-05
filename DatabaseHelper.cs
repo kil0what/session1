@@ -80,7 +80,56 @@ namespace SportsGoodsApp
                 return false;
             }
         }
+        public static Product GetProductByArticle(string articleNumber)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
 
+                    string query = @"
+                SELECT ArticleNumber, Name, Unit, Price, MaxDiscount, Manufacturer, 
+                       Supplier, Category, CurrentDiscount, StockQuantity, Description, ImagePath
+                FROM Products 
+                WHERE ArticleNumber = @ArticleNumber";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@ArticleNumber", articleNumber);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                return new Product
+                                {
+                                    ArticleNumber = reader["ArticleNumber"].ToString(),
+                                    Name = reader["Name"].ToString(),
+                                    Unit = reader["Unit"] != DBNull.Value ? reader["Unit"].ToString() : "шт.",
+                                    Price = Convert.ToDecimal(reader["Price"]),
+                                    MaxDiscount = reader["MaxDiscount"] != DBNull.Value ? Convert.ToDecimal(reader["MaxDiscount"]) : 0,
+                                    Manufacturer = reader["Manufacturer"] != DBNull.Value ? reader["Manufacturer"].ToString() : null,
+                                    Supplier = reader["Supplier"] != DBNull.Value ? reader["Supplier"].ToString() : null,
+                                    Category = reader["Category"] != DBNull.Value ? reader["Category"].ToString() : null,
+                                    CurrentDiscount = reader["CurrentDiscount"] != DBNull.Value ? Convert.ToDecimal(reader["CurrentDiscount"]) : 0,
+                                    StockQuantity = Convert.ToInt32(reader["StockQuantity"]),
+                                    Description = reader["Description"] != DBNull.Value ? reader["Description"].ToString() : null,
+                                    ImagePath = reader["ImagePath"] != DBNull.Value ? reader["ImagePath"].ToString() : null
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка получения товара: {ex.Message}",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            return null;
+        }
         // Асинхронная версия (если нужна для других целей)
         public static async Task<bool> TestConnectionAsync()
         {
@@ -361,12 +410,19 @@ namespace SportsGoodsApp
                     connection.Open();
 
                     string query = @"
-                        UPDATE Products 
-                        SET Name = @Name, Unit = @Unit, Price = @Price, MaxDiscount = @MaxDiscount,
-                            Manufacturer = @Manufacturer, Supplier = @Supplier, Category = @Category,
-                            CurrentDiscount = @CurrentDiscount, StockQuantity = @StockQuantity,
-                            Description = @Description, ImagePath = @ImagePath
-                        WHERE ArticleNumber = @ArticleNumber";
+                UPDATE Products 
+                SET Name = @Name, 
+                    Unit = @Unit, 
+                    Price = @Price, 
+                    MaxDiscount = @MaxDiscount,
+                    Manufacturer = @Manufacturer, 
+                    Supplier = @Supplier, 
+                    Category = @Category,
+                    CurrentDiscount = @CurrentDiscount, 
+                    StockQuantity = @StockQuantity,
+                    Description = @Description, 
+                    ImagePath = @ImagePath
+                WHERE ArticleNumber = @ArticleNumber";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
@@ -384,7 +440,19 @@ namespace SportsGoodsApp
                         command.Parameters.AddWithValue("@ImagePath", (object)product.ImagePath ?? DBNull.Value);
 
                         int rowsAffected = command.ExecuteNonQuery();
-                        return rowsAffected > 0;
+
+                        if (rowsAffected > 0)
+                        {
+                            MessageBox.Show($"Товар '{product.Name}' успешно обновлен!", "Успех",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return true;
+                        }
+                        else
+                        {
+                            MessageBox.Show("Товар не найден для обновления", "Ошибка",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
                     }
                 }
             }
@@ -395,7 +463,6 @@ namespace SportsGoodsApp
                 return false;
             }
         }
-
         // Удаление товара
         public static bool DeleteProduct(string articleNumber)
         {
@@ -527,6 +594,83 @@ namespace SportsGoodsApp
             }
 
             return categories;
+        }
+        public static List<Order> GetUserOrders(string userFullName)
+        {
+            List<Order> orders = new List<Order>();
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    string query = @"
+                SELECT Id, OrderItems, OrderDate, DeliveryDate, 
+                       PickupPointId, CustomerName, Code, Status
+                FROM Orders 
+                WHERE CustomerName = @CustomerName
+                ORDER BY OrderDate DESC";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@CustomerName", userFullName);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                Order order = new Order
+                                {
+                                    Id = Convert.ToInt32(reader["Id"]),
+                                    OrderItems = reader["OrderItems"].ToString(),
+                                    OrderDate = Convert.ToDateTime(reader["OrderDate"]),
+                                    DeliveryDate = Convert.ToDateTime(reader["DeliveryDate"]),
+                                    PickupPointId = Convert.ToInt32(reader["PickupPointId"]),
+                                    CustomerName = reader["CustomerName"].ToString(),
+                                    Code = reader["Code"].ToString(),
+                                    Status = reader["Status"].ToString()
+                                };
+
+                                orders.Add(order);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки заказов: {ex.Message}",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            return orders;
+        }
+
+        // Получение адреса пункта выдачи
+        public static string GetPickupPointAddress(int pickupPointId)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    string query = "SELECT Address FROM PickupPoints WHERE Id = @Id";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@Id", pickupPointId);
+                        var result = command.ExecuteScalar();
+
+                        return result != null ? result.ToString() : "Адрес не указан";
+                    }
+                }
+            }
+            catch
+            {
+                return "Адрес не указан";
+            }
         }
     }
 }

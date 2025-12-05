@@ -55,11 +55,9 @@ namespace SportsGoodsApp
     public static class Session
     {
         public static User CurrentUser { get; set; }
-
-        public static bool IsLoggedIn => CurrentUser != null;
-        public static bool IsAdmin => CurrentUser?.Role == "Admin";
-        public static bool IsManager => CurrentUser?.Role == "Manager";
-        public static bool IsClient => CurrentUser?.Role == "Client";
+        public static bool IsAdmin => CurrentUser?.Role == "Администратор";
+        public static bool IsManager => CurrentUser?.Role == "Менеджер";
+        public static bool IsClient => CurrentUser?.Role == "Клиент";
         public static bool IsGuest => CurrentUser?.Role == "Guest";
     }
 

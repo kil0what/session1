@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace SportsGoodsApp
@@ -25,8 +24,12 @@ namespace SportsGoodsApp
         private Button btnBrowseImage;
         private Button btnSave;
         private Button btnCancel;
+        private Button btnRemoveImage;
+        private Label lblImageInfo;
 
-        private string selectedImagePath;
+        private string originalImagePath;
+        private string newImagePath;
+        private bool imageChanged = false;
         private bool isEditing;
 
         public ProductEditForm(Product existingProduct)
@@ -35,13 +38,14 @@ namespace SportsGoodsApp
             isEditing = existingProduct != null;
             InitializeComponents();
             LoadProductData();
-            ApplyStyles();
+            LogoHelper.ApplyIcon(this)
+            ;
         }
 
         private void InitializeComponents()
         {
             this.Text = isEditing ? "Редактирование товара" : "Добавление товара";
-            this.Size = new Size(600, 700);
+            this.Size = new Size(650, 750);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -57,96 +61,92 @@ namespace SportsGoodsApp
             };
 
             int yPos = 20;
+            int labelWidth = 150;
             int fieldWidth = 350;
+            int fieldHeight = 25;
 
             // Артикул
-            CreateLabel("Артикул:", yPos);
-            txtArticle = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Артикул:", yPos, labelWidth);
+            txtArticle = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtArticle.MaxLength = 20;
+            if (isEditing) txtArticle.Enabled = false;
 
-            yPos += 40;
+            yPos += 35;
 
             // Название
-            CreateLabel("Название товара:", yPos);
-            txtName = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Название товара:", yPos, labelWidth);
+            txtName = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtName.MaxLength = 100;
 
-            yPos += 40;
+            yPos += 35;
 
             // Категория
-            CreateLabel("Категория:", yPos);
+            CreateLabel("Категория:", yPos, labelWidth);
             cmbCategory = new ComboBox
             {
                 Location = new Point(180, yPos),
-                Size = new Size(fieldWidth, 25),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Size = new Size(fieldWidth, fieldHeight),
+                DropDownStyle = ComboBoxStyle.DropDown
             };
-            // Заполняем категории
-            var categories = FakeDatabase.Products
-                .Select(p => p.Category)
-                .Where(c => !string.IsNullOrEmpty(c))
-                .Distinct()
-                .OrderBy(c => c)
-                .ToArray();
 
-            cmbCategory.Items.AddRange(categories);
-            cmbCategory.Items.Add("Другая категория");
+            // Заполняем категории из БД
+            LoadCategories();
 
-            yPos += 40;
+            yPos += 35;
 
             // Количество
-            CreateLabel("Количество на складе:", yPos);
-            txtQuantity = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Количество на складе:", yPos, labelWidth);
+            txtQuantity = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtQuantity.KeyPress += NumericTextBox_KeyPress;
 
-            yPos += 40;
+            yPos += 35;
 
             // Единица измерения
-            CreateLabel("Единица измерения:", yPos);
-            txtUnit = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Единица измерения:", yPos, labelWidth);
+            txtUnit = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtUnit.Text = "шт.";
 
-            yPos += 40;
+            yPos += 35;
 
             // Производитель
-            CreateLabel("Производитель:", yPos);
-            txtManufacturer = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Производитель:", yPos, labelWidth);
+            txtManufacturer = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtManufacturer.MaxLength = 50;
 
-            yPos += 40;
+            yPos += 35;
 
             // Поставщик
-            CreateLabel("Поставщик:", yPos);
-            txtSupplier = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Поставщик:", yPos, labelWidth);
+            txtSupplier = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtSupplier.MaxLength = 50;
 
-            yPos += 40;
+            yPos += 35;
 
             // Цена
-            CreateLabel("Цена (руб.):", yPos);
-            txtPrice = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Цена (руб.):", yPos, labelWidth);
+            txtPrice = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtPrice.KeyPress += DecimalTextBox_KeyPress;
 
-            yPos += 40;
+            yPos += 35;
 
             // Максимальная скидка
-            CreateLabel("Макс. скидка (%):", yPos);
-            txtMaxDiscount = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Макс. скидка (%):", yPos, labelWidth);
+            txtMaxDiscount = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtMaxDiscount.KeyPress += NumericTextBox_KeyPress;
             txtMaxDiscount.Text = "0";
 
-            yPos += 40;
+            yPos += 35;
 
             // Текущая скидка
-            CreateLabel("Текущая скидка (%):", yPos);
-            txtCurrentDiscount = CreateTextBox(yPos, fieldWidth);
+            CreateLabel("Текущая скидка (%):", yPos, labelWidth);
+            txtCurrentDiscount = CreateTextBox(yPos, fieldWidth, fieldHeight);
             txtCurrentDiscount.KeyPress += NumericTextBox_KeyPress;
             txtCurrentDiscount.Text = "0";
 
-            yPos += 40;
+            yPos += 35;
 
             // Описание
-            CreateLabel("Описание:", yPos);
+            CreateLabel("Описание:", yPos, labelWidth);
             txtDescription = new TextBox
             {
                 Location = new Point(180, yPos),
@@ -156,14 +156,27 @@ namespace SportsGoodsApp
                 MaxLength = 500
             };
 
-            yPos += 100;
+            yPos += 90;
 
             // Изображение
-            CreateLabel("Изображение:", yPos);
+            CreateLabel("Изображение:", yPos, labelWidth);
+
+            // Информация об изображении
+            lblImageInfo = new Label
+            {
+                Text = "Размер: 300x200 px",
+                Location = new Point(180, yPos),
+                Size = new Size(fieldWidth, 20),
+                Font = new Font("Comic Sans MS", 8),
+                ForeColor = Color.Gray
+            };
+
+            yPos += 25;
+
             picImage = new PictureBox
             {
                 Location = new Point(180, yPos),
-                Size = new Size(150, 150),
+                Size = new Size(300, 200),
                 BorderStyle = BorderStyle.FixedSingle,
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BackColor = Color.White
@@ -171,26 +184,38 @@ namespace SportsGoodsApp
 
             btnBrowseImage = new Button
             {
-                Text = "Выбрать...",
-                Location = new Point(340, yPos),
-                Size = new Size(100, 30),
-                BackColor = Color.LightGray,
+                Text = "Выбрать изображение...",
+                Location = new Point(490, yPos),
+                Size = new Size(150, 30),
+                BackColor = Color.FromArgb(73, 140, 81),
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
             };
             btnBrowseImage.Click += BtnBrowseImage_Click;
 
-            yPos += 170;
+            btnRemoveImage = new Button
+            {
+                Text = "Удалить",
+                Location = new Point(490, yPos + 40),
+                Size = new Size(150, 30),
+                BackColor = Color.LightGray,
+                FlatStyle = FlatStyle.Flat,
+                Enabled = false
+            };
+            btnRemoveImage.Click += BtnRemoveImage_Click;
+
+            yPos += 220;
 
             // Кнопки
             btnSave = new Button
             {
                 Text = "Сохранить",
                 Location = new Point(180, yPos),
-                Size = new Size(120, 35),
+                Size = new Size(120, 40),
                 BackColor = Color.FromArgb(73, 140, 81),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                DialogResult = DialogResult.OK
+                Font = new Font("Comic Sans MS", 10, FontStyle.Bold)
             };
             btnSave.Click += BtnSave_Click;
 
@@ -198,7 +223,7 @@ namespace SportsGoodsApp
             {
                 Text = "Отмена",
                 Location = new Point(310, yPos),
-                Size = new Size(120, 35),
+                Size = new Size(120, 40),
                 BackColor = Color.LightGray,
                 ForeColor = Color.Black,
                 FlatStyle = FlatStyle.Flat,
@@ -208,19 +233,10 @@ namespace SportsGoodsApp
             // Добавляем все контролы
             mainPanel.Controls.AddRange(new Control[]
             {
-                txtArticle,
-                txtName,
-                cmbCategory,
-                txtQuantity,
-                txtUnit,
-                txtManufacturer,
-                txtSupplier,
-                txtPrice,
-                txtMaxDiscount,
-                txtCurrentDiscount,
-                txtDescription,
-                picImage, btnBrowseImage,
-                btnSave, btnCancel
+                txtArticle, txtName, cmbCategory, txtQuantity, txtUnit,
+                txtManufacturer, txtSupplier, txtPrice, txtMaxDiscount,
+                txtCurrentDiscount, txtDescription, picImage, lblImageInfo,
+                btnBrowseImage, btnRemoveImage, btnSave, btnCancel
             });
 
             this.Controls.Add(mainPanel);
@@ -228,25 +244,67 @@ namespace SportsGoodsApp
             this.CancelButton = btnCancel;
         }
 
-        private void CreateLabel(string text, int yPos)
+        private void CreateLabel(string text, int yPos, int width)
         {
             var label = new Label
             {
                 Text = text,
                 Location = new Point(20, yPos),
-                Size = new Size(150, 25),
-                TextAlign = ContentAlignment.MiddleRight
+                Size = new Size(width, 25),
+                TextAlign = ContentAlignment.MiddleRight,
+                Font = new Font("Comic Sans MS", 10)
             };
             this.Controls.Add(label);
         }
 
-        private TextBox CreateTextBox(int yPos, int width)
+        private TextBox CreateTextBox(int yPos, int width, int height)
         {
             return new TextBox
             {
                 Location = new Point(180, yPos),
-                Size = new Size(width, 25)
+                Size = new Size(width, height),
+                Font = new Font("Comic Sans MS", 10)
             };
+        }
+
+        private void LoadCategories()
+        {
+            try
+            {
+                // Получаем категории из БД
+                var categories = DatabaseHelper.GetCategories();
+
+                cmbCategory.Items.Clear();
+                foreach (var category in categories)
+                {
+                    cmbCategory.Items.Add(category);
+                }
+
+                if (isEditing && !string.IsNullOrEmpty(Product.Category))
+                {
+                    if (cmbCategory.Items.Contains(Product.Category))
+                    {
+                        cmbCategory.SelectedItem = Product.Category;
+                    }
+                    else
+                    {
+                        cmbCategory.Items.Add(Product.Category);
+                        cmbCategory.SelectedItem = Product.Category;
+                    }
+                }
+                else if (cmbCategory.Items.Count > 0)
+                {
+                    cmbCategory.SelectedIndex = 0;
+                }
+            }
+            catch
+            {
+                // Если не удалось загрузить категории, добавляем стандартные
+                cmbCategory.Items.AddRange(new string[] {
+                    "Спортивный инвентарь", "Одежда", "Обувь", "Аксессуары"
+                });
+                cmbCategory.SelectedIndex = 0;
+            }
         }
 
         private void LoadProductData()
@@ -254,61 +312,115 @@ namespace SportsGoodsApp
             if (isEditing)
             {
                 txtArticle.Text = Product.ArticleNumber;
-                txtArticle.Enabled = false;
                 txtName.Text = Product.Name;
-
-                if (cmbCategory.Items.Contains(Product.Category))
-                    cmbCategory.SelectedItem = Product.Category;
-                else if (cmbCategory.Items.Count > 0)
-                    cmbCategory.SelectedIndex = cmbCategory.Items.Count - 1;
-
                 txtQuantity.Text = Product.StockQuantity.ToString();
-                txtUnit.Text = Product.Unit;
-                txtManufacturer.Text = Product.Manufacturer;
-                txtSupplier.Text = Product.Supplier;
+                txtUnit.Text = Product.Unit ?? "шт.";
+                txtManufacturer.Text = Product.Manufacturer ?? "";
+                txtSupplier.Text = Product.Supplier ?? "";
                 txtPrice.Text = Product.Price.ToString("0.##");
                 txtMaxDiscount.Text = Product.MaxDiscount.ToString("0.##");
                 txtCurrentDiscount.Text = Product.CurrentDiscount.ToString("0.##");
-                txtDescription.Text = Product.Description;
+                txtDescription.Text = Product.Description ?? "";
+
+                // Сохраняем оригинальный путь к изображению
+                originalImagePath = Product.ImagePath;
 
                 // Загружаем изображение
-                if (!string.IsNullOrEmpty(Product.ImagePath))
+                if (!string.IsNullOrEmpty(originalImagePath))
                 {
-                    string imagePath = Path.Combine("Resources/Images/", Product.ImagePath);
-                    if (File.Exists(imagePath))
-                    {
-                        try
-                        {
-                            picImage.Image = Image.FromFile(imagePath);
-                            selectedImagePath = Product.ImagePath;
-                        }
-                        catch { }
-                    }
+                    LoadImageFromPath(originalImagePath);
+                    btnRemoveImage.Enabled = true;
+                }
+                else
+                {
+                    SetDefaultImage();
                 }
             }
             else
             {
-                // Для нового товара генерируем артикул
-                txtArticle.Text = GenerateArticleNumber();
+                // Для нового товара
+                SetDefaultImage();
             }
         }
 
-        private string GenerateArticleNumber()
+        private void LoadImageFromPath(string imagePath)
         {
-            Random rand = new Random();
-            string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            char[] result = new char[6];
-            for (int i = 0; i < 6; i++)
+            try
             {
-                result[i] = chars[rand.Next(chars.Length)];
+                string fullPath = GetFullImagePath(imagePath);
+                if (File.Exists(fullPath))
+                {
+                    picImage.Image = Image.FromFile(fullPath);
+                    lblImageInfo.Text = $"Изображение: {Path.GetFileName(imagePath)}";
+                }
+                else
+                {
+                    SetDefaultImage();
+                }
             }
-            return new string(result);
+            catch
+            {
+                SetDefaultImage();
+            }
         }
 
-        private void ApplyStyles()
+        private void SetDefaultImage()
         {
-            btnSave.Font = new Font("Comic Sans MS", 10, FontStyle.Bold);
-            btnCancel.Font = new Font("Comic Sans MS", 10);
+            try
+            {
+                // Используем глобальную заглушку
+                picImage.Image = LogoHelper.GetPlaceholderImage();
+                lblImageInfo.Text = "Используется изображение-заглушка";
+            }
+            catch
+            {
+                // Создаем простую заглушку программно
+                Bitmap bmp = new Bitmap(296, 196);
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.LightGray);
+                    g.DrawString("Нет изображения",
+                        new Font("Comic Sans MS", 14),
+                        Brushes.Gray, 60, 80);
+                }
+                picImage.Image = bmp;
+            }
+        }
+
+        private Image CreateDefaultImage()
+        {
+            Bitmap bmp = new Bitmap(300, 200);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.LightGray);
+                g.DrawString("Нет изображения",
+                    new Font("Comic Sans MS", 12),
+                    Brushes.Gray, 80, 80);
+                g.DrawRectangle(Pens.DarkGray, 0, 0, 299, 199);
+            }
+            return bmp;
+        }
+
+        private string GetFullImagePath(string relativePath)
+        {
+            string[] possiblePaths =
+            {
+                Path.Combine("Resources/Images/", relativePath),
+                Path.Combine("Images/", relativePath),
+                Path.Combine("Resources/", relativePath),
+                relativePath,
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources/Images/", relativePath),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath)
+            };
+
+            foreach (var path in possiblePaths)
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    return path;
+                }
+            }
+            return relativePath;
         }
 
         private void NumericTextBox_KeyPress(object sender, KeyPressEventArgs e)
@@ -337,15 +449,43 @@ namespace SportsGoodsApp
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "Image files (*.jpg, *.jpeg, *.png)|*.jpg;*.jpeg;*.png";
+                openFileDialog.Filter = "Image files (*.jpg, *.jpeg, *.png, *.bmp)|*.jpg;*.jpeg;*.png;*.bmp";
                 openFileDialog.Title = "Выберите изображение товара";
+                openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     try
                     {
-                        picImage.Image = Image.FromFile(openFileDialog.FileName);
-                        selectedImagePath = Path.GetFileName(openFileDialog.FileName);
+                        // Загружаем изображение
+                        Image selectedImage = Image.FromFile(openFileDialog.FileName);
+
+                        // Проверяем размер (300x200 по ТЗ)
+                        if (selectedImage.Width > 300 || selectedImage.Height > 200)
+                        {
+                            DialogResult resizeResult = MessageBox.Show(
+                                $"Изображение {selectedImage.Width}x{selectedImage.Height} px превышает рекомендуемый размер 300x200 px.\n" +
+                                "Желаете уменьшить изображение?",
+                                "Размер изображения",
+                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxIcon.Question);
+
+                            if (resizeResult == DialogResult.Yes)
+                            {
+                                // Изменяем размер
+                                selectedImage = ResizeImage(selectedImage, 300, 200);
+                            }
+                            else if (resizeResult == DialogResult.Cancel)
+                            {
+                                return;
+                            }
+                        }
+
+                        picImage.Image = selectedImage;
+                        newImagePath = Path.GetFileName(openFileDialog.FileName);
+                        lblImageInfo.Text = $"Изображение: {newImagePath}";
+                        imageChanged = true;
+                        btnRemoveImage.Enabled = true;
                     }
                     catch (Exception ex)
                     {
@@ -356,16 +496,34 @@ namespace SportsGoodsApp
             }
         }
 
+        private Image ResizeImage(Image image, int width, int height)
+        {
+            Bitmap result = new Bitmap(width, height);
+            using (Graphics g = Graphics.FromImage(result))
+            {
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.DrawImage(image, 0, 0, width, height);
+            }
+            return result;
+        }
+
+        private void BtnRemoveImage_Click(object sender, EventArgs e)
+        {
+            SetDefaultImage();
+            newImagePath = null;
+            imageChanged = true;
+            btnRemoveImage.Enabled = false;
+        }
+
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            // Валидация
             if (!ValidateInput())
                 return;
 
             // Сохранение данных
             Product.ArticleNumber = txtArticle.Text.Trim();
             Product.Name = txtName.Text.Trim();
-            Product.Category = cmbCategory.SelectedItem?.ToString() ?? "Другое";
+            Product.Category = cmbCategory.Text.Trim();
             Product.StockQuantity = int.Parse(txtQuantity.Text);
             Product.Unit = txtUnit.Text.Trim();
             Product.Manufacturer = txtManufacturer.Text.Trim();
@@ -375,16 +533,33 @@ namespace SportsGoodsApp
             Product.CurrentDiscount = decimal.Parse(txtCurrentDiscount.Text);
             Product.Description = txtDescription.Text.Trim();
 
-            if (!string.IsNullOrEmpty(selectedImagePath))
+            // Обработка изображения
+            if (imageChanged)
             {
-                Product.ImagePath = selectedImagePath;
+                // Удаляем старое изображение, если оно было
+                if (!string.IsNullOrEmpty(originalImagePath))
+                {
+                    DeleteOldImage(originalImagePath);
+                }
+
+                // Сохраняем новое изображение
+                if (!string.IsNullOrEmpty(newImagePath) && picImage.Image != null)
+                {
+                    string savedPath = SaveImageToFile();
+                    Product.ImagePath = savedPath;
+                }
+                else
+                {
+                    Product.ImagePath = null; // Изображение было удалено
+                }
+            }
+            else if (isEditing)
+            {
+                // Изображение не менялось, сохраняем старый путь
+                Product.ImagePath = originalImagePath;
             }
 
             DialogResult = DialogResult.OK;
-        }
-        private void ProductEditForm_Load(object sender, EventArgs e)
-        {
-            // Оставляем пустым
         }
 
         private bool ValidateInput()
@@ -422,6 +597,76 @@ namespace SportsGoodsApp
             }
 
             return true;
+        }
+
+        private void DeleteOldImage(string oldImagePath)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(oldImagePath))
+                {
+                    string[] possiblePaths =
+                    {
+                        Path.Combine("Resources/Images/", oldImagePath),
+                        Path.Combine("Images/", oldImagePath),
+                        oldImagePath
+                    };
+
+                    foreach (var path in possiblePaths)
+                    {
+                        if (File.Exists(path))
+                        {
+                            File.Delete(path);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Игнорируем ошибки удаления
+            }
+        }
+
+        private string SaveImageToFile()
+        {
+            try
+            {
+                // Создаем папку для изображений, если её нет
+                string imagesFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "Images");
+                if (!Directory.Exists(imagesFolder))
+                {
+                    Directory.CreateDirectory(imagesFolder);
+                }
+
+                // Генерируем имя файла
+                string fileName;
+                if (!string.IsNullOrEmpty(newImagePath))
+                {
+                    fileName = $"{Product.ArticleNumber}_{Path.GetFileName(newImagePath)}";
+                }
+                else
+                {
+                    fileName = $"{Product.ArticleNumber}.jpg";
+                }
+
+                string fullPath = Path.Combine(imagesFolder, fileName);
+
+                // Сохраняем изображение
+                picImage.Image.Save(fullPath, System.Drawing.Imaging.ImageFormat.Jpeg);
+
+                return fileName; // Возвращаем только имя файла для хранения в БД
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка сохранения изображения: {ex.Message}",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+        }
+        private void ProductEditForm_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
