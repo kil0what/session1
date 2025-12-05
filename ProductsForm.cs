@@ -26,43 +26,48 @@ namespace SportsGoodsApp
 
         private void LoadProducts()
         {
-            currentProducts = FakeDatabase.Products;
-
-            // Заполняем список производителей
-            var manufacturers = currentProducts
-                .Select(p => p.Manufacturer)
-                .Where(m => !string.IsNullOrEmpty(m))
-                .Distinct()
-                .OrderBy(m => m)
-                .ToList();
-
-            cmbManufacturer.Items.Clear();
-            cmbManufacturer.Items.Add("Все производители");
-            foreach (var manufacturer in manufacturers)
+            try
             {
-                cmbManufacturer.Items.Add(manufacturer);
+                // ТОЛЬКО реальная БД
+                currentProducts = DatabaseHelper.GetAllProducts();
+
+                if (currentProducts.Count == 0)
+                {
+                    MessageBox.Show("В базе данных нет товаров.",
+                        "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                // Заполняем производителей из БД
+                var manufacturers = DatabaseHelper.GetManufacturers();
+
+                cmbManufacturer.Items.Clear();
+                cmbManufacturer.Items.Add("Все производители");
+                foreach (var manufacturer in manufacturers)
+                {
+                    cmbManufacturer.Items.Add(manufacturer);
+                }
+                cmbManufacturer.SelectedIndex = 0;
+
+                // Заполняем категории из БД
+                var categories = DatabaseHelper.GetCategories();
+
+                cmbCategory.Items.Clear();
+                cmbCategory.Items.Add("Все категории");
+                foreach (var category in categories)
+                {
+                    cmbCategory.Items.Add(category);
+                }
+                cmbCategory.SelectedIndex = 0;
+
+                ApplyFilters();
             }
-            cmbManufacturer.SelectedIndex = 0;
-
-            // Заполняем список категорий
-            var categories = currentProducts
-                .Select(p => p.Category)
-                .Where(c => !string.IsNullOrEmpty(c))
-                .Distinct()
-                .OrderBy(c => c)
-                .ToList();
-
-            cmbCategory.Items.Clear();
-            cmbCategory.Items.Add("Все категории");
-            foreach (var category in categories)
+            catch (Exception ex)
             {
-                cmbCategory.Items.Add(category);
+                MessageBox.Show($"Ошибка загрузки данных из базы:\n{ex.Message}",
+                    "Критическая ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this.Close(); // Закрываем форму если не можем загрузить данные
             }
-            cmbCategory.SelectedIndex = 0;
-
-            ApplyFilters();
         }
-
         private void ApplyFilters()
         {
             filteredProducts = currentProducts.ToList();

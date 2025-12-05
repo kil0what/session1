@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace SportsGoodsApp
@@ -185,59 +187,65 @@ namespace SportsGoodsApp
         }
         private bool CheckLogin(string login, string password)
         {
-            // Ищем пользователя в базе
-            var user = FakeDatabase.Users.FirstOrDefault(u =>
-                u.Login.Equals(login, StringComparison.OrdinalIgnoreCase) &&
-                u.Password == password);
+            try
+            {
+                // Проверяем подключение к базе данных
+                bool canConnect = Task.Run(() => DatabaseHelper.TestConnectionAsync()).GetAwaiter().GetResult();
 
-            if (user != null)
-            {
-                Session.CurrentUser = new User
+                if (!canConnect)
                 {
-                    Id = user.Id,
-                    Login = user.Login,
-                    Role = user.Role,
-                    FullName = user.FullName
-                };
-                return true;
-            }
+                    // Если не можем подключиться к БД, показываем сообщение
+                    MessageBox.Show("Не удалось подключиться к базе данных.\nПроверьте:\n1. Установлен ли SQL Server LocalDB\n2. Существует ли база SportsGoodsDB_Cyrillic\n3. Есть ли таблица Users с данными",
+                        "Ошибка подключения", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
 
-            // Также проверяем старые тестовые аккаунты (можно удалить после тестирования)
-            if (login == "admin" && password == "admin123")
-            {
-                Session.CurrentUser = new User
-                {
-                    Id = 1,
-                    Login = "admin",
-                    Role = "Admin",
-                    FullName = "Пахомова Аиша Анатольевна"
-                };
-                return true;
-            }
-            if (login == "manager" && password == "manager123")
-            {
-                Session.CurrentUser = new User
-                {
-                    Id = 4,
-                    Login = "manager",
-                    Role = "Manager",
-                    FullName = "Григорьева Арина Арсентьевна"
-                };
-                return true;
-            }
-            if (login == "client" && password == "client123")
-            {
-                Session.CurrentUser = new User
-                {
-                    Id = 7,
-                    Login = "client",
-                    Role = "Client",
-                    FullName = "Поляков Степан Егорович"
-                };
-                return true;
-            }
+                // Пробуем авторизоваться через базу данных
+                var user = DatabaseHelper.AuthenticateUser(login, password);
 
-            return false;
+                if (user != null)
+                {
+                    Session.CurrentUser = user;
+
+                    // Логирование для отладки
+                    Console.WriteLine($"Успешный вход: {user.FullName}, Роль: {user.Role}");
+                    return true;
+                }
+                else
+                {
+                    // Для отладки: попробуем вывести что есть в базе
+                    try
+                    {
+                        using (SqlConnection connection = new SqlConnection(DatabaseHelper.connectionString))
+                        {
+                            connection.Open();
+                            string query = "SELECT Login, Password FROM Users";
+                            using (SqlCommand cmd = new SqlCommand(query, connection))
+                            using (SqlDataReader reader = cmd.ExecuteReader())
+                            {
+                                string usersInfo = "Доступные пользователи в БД:\n";
+                                while (reader.Read())
+                                {
+                                    usersInfo += $"Логин: {reader["Login"]}, Пароль: {reader["Password"]}\n";
+                                }
+                                Console.WriteLine(usersInfo);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Ошибка при проверке БД: {ex.Message}");
+                    }
+
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при авторизации: {ex.Message}\nПроверьте подключение к базе данных.",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
         }
         // ГОСТЬ
         private void BtnGuest_Click(object sender, EventArgs e)
@@ -411,17 +419,19 @@ namespace SportsGoodsApp
 
         private void label1_Click(object sender, EventArgs e)
         {
-            // Пустой метод
-        }
+}
 
         private void label2_Click(object sender, EventArgs e)
         {
-            // Пустой метод
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            // Можно оставить пустым или добавить инициализацию
+        }
+
+        private void Form1_Load_1(object sender, EventArgs e)
+        {
+
         }
     }
 }

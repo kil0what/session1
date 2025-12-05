@@ -163,6 +163,7 @@
             this.MaximizeBox = false;
             this.Name = "Form1";
             this.Text = "LoginForm";
+            this.Load += new System.EventHandler(this.Form1_Load_1);
             ((System.ComponentModel.ISupportInitialize)(this.picCaptcha)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
