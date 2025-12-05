@@ -7,101 +7,283 @@ using System.Windows.Forms;
 
 namespace SportsGoodsApp
 {
-    public partial class ProductsForm : Form
+    public class ProductsForm : Form
     {
-        private List<Product> currentProducts;
+        private List<Product> allProducts;
         private List<Product> filteredProducts;
-        private string currentSearch = "";
-        private string currentManufacturer = "Все производители";
-        private string currentCategory = "Все категории";
-        private string currentSort = "По умолчанию";
+
+        // Элементы управления
+        private TextBox txtSearch;
+        private ComboBox cmbManufacturer;
+        private ComboBox cmbCategory;
+        private ComboBox cmbSort;
+        private Label lblResults;
+        private FlowLayoutPanel flowPanel;
+        private Button btnReset;
+        private Button btnViewCart;
+        private Label lblCartCount;
+
+        private PictureBox logoPictureBox;
+        private Font mainFont = new Font("Comic Sans MS", 10);
+        private Color backgroundColor = Color.White;
+        private Color accentColor = Color.FromArgb(73, 140, 81);
+        private Color secondaryColor = Color.FromArgb(118, 227, 131);
 
         public ProductsForm()
         {
-            InitializeComponent();
+            InitializeForm();
             LoadProducts();
-            this.Load += ProductsForm_Load;
         }
 
+        private void InitializeForm()
+        {
+            this.Text = "ООО Спортивные товары - Каталог";
+            this.Size = new Size(1000, 700);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = backgroundColor;
+            this.Font = mainFont;
+
+            LoadLogo();
+            CreateControls();
+        }
+
+        private void LoadLogo()
+        {
+            logoPictureBox = new PictureBox
+            {
+                Size = new Size(200, 60),
+                Location = new Point(this.ClientSize.Width - 220, 10),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            try
+            {
+                if (File.Exists("Resources/logo.png"))
+                {
+                    logoPictureBox.Image = Image.FromFile("Resources/logo.png");
+                }
+            }
+            catch { }
+
+            this.Controls.Add(logoPictureBox);
+        }
+
+        private void CreateControls()
+        {
+            // Поиск
+            Label lblSearch = new Label
+            {
+                Text = "Поиск:",
+                Location = new Point(20, 20),
+                Size = new Size(60, 25)
+            };
+
+            txtSearch = new TextBox
+            {
+                Location = new Point(85, 20),
+                Size = new Size(200, 25)
+            };
+            txtSearch.TextChanged += (s, e) => FilterProducts();
+
+            // Производитель
+            Label lblManufacturer = new Label
+            {
+                Text = "Производитель:",
+                Location = new Point(300, 20),
+                Size = new Size(110, 25)
+            };
+
+            cmbManufacturer = new ComboBox
+            {
+                Location = new Point(415, 20),
+                Size = new Size(150, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbManufacturer.SelectedIndexChanged += (s, e) => FilterProducts();
+
+            // Категория
+            Label lblCategory = new Label
+            {
+                Text = "Категория:",
+                Location = new Point(580, 20),
+                Size = new Size(80, 25)
+            };
+
+            cmbCategory = new ComboBox
+            {
+                Location = new Point(665, 20),
+                Size = new Size(150, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbCategory.SelectedIndexChanged += (s, e) => FilterProducts();
+
+            // Сортировка
+            Label lblSort = new Label
+            {
+                Text = "Сортировка:",
+                Location = new Point(830, 20),
+                Size = new Size(90, 25)
+            };
+
+            cmbSort = new ComboBox
+            {
+                Location = new Point(925, 20),
+                Size = new Size(150, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbSort.Items.AddRange(new string[] { "По умолчанию", "Цена ↑", "Цена ↓" });
+            cmbSort.SelectedIndex = 0;
+            cmbSort.SelectedIndexChanged += (s, e) => FilterProducts();
+
+            // Результаты
+            lblResults = new Label
+            {
+                Text = "Товары загружаются...",
+                Location = new Point(20, 60),
+                Size = new Size(300, 25),
+                ForeColor = accentColor
+            };
+
+            // Корзина
+            lblCartCount = new Label
+            {
+                Text = $"Корзина: {Cart.TotalItems} товаров",
+                Location = new Point(700, 60),
+                Size = new Size(150, 25),
+                ForeColor = accentColor
+            };
+
+            btnViewCart = new Button
+            {
+                Text = "Перейти в корзину",
+                Location = new Point(860, 55),
+                Size = new Size(120, 30),
+                BackColor = accentColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnViewCart.Click += (s, e) =>
+            {
+                CartForm cartForm = new CartForm();
+                cartForm.ShowDialog();
+                UpdateCartCount();
+            };
+
+            // Сброс
+            btnReset = new Button
+            {
+                Text = "Сбросить",
+                Location = new Point(1080, 20),
+                Size = new Size(80, 25),
+                BackColor = secondaryColor,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnReset.Click += (s, e) =>
+            {
+                txtSearch.Text = "";
+                cmbManufacturer.SelectedIndex = 0;
+                cmbCategory.SelectedIndex = 0;
+                cmbSort.SelectedIndex = 0;
+                FilterProducts();
+            };
+
+            // Панель товаров
+            flowPanel = new FlowLayoutPanel
+            {
+                Location = new Point(20, 100),
+                Size = new Size(960, 550),
+                AutoScroll = true,
+                BackColor = Color.White
+            };
+
+            this.Controls.AddRange(new Control[]
+            {
+                lblSearch, txtSearch,
+                lblManufacturer, cmbManufacturer,
+                lblCategory, cmbCategory,
+                lblSort, cmbSort,
+                btnReset,
+                lblResults,
+                lblCartCount, btnViewCart,
+                flowPanel
+            });
+        }
 
         private void LoadProducts()
         {
             try
             {
-                // ТОЛЬКО реальная БД
-                currentProducts = DatabaseHelper.GetAllProducts();
+                allProducts = DatabaseHelper.GetAllProducts();
 
-                if (currentProducts.Count == 0)
-                {
-                    MessageBox.Show("В базе данных нет товаров.",
-                        "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-
-                // Заполняем производителей из БД
-                var manufacturers = DatabaseHelper.GetManufacturers();
-
-                cmbManufacturer.Items.Clear();
+                // Заполняем фильтры
                 cmbManufacturer.Items.Add("Все производители");
-                foreach (var manufacturer in manufacturers)
-                {
-                    cmbManufacturer.Items.Add(manufacturer);
-                }
+                var manufacturers = allProducts
+                    .Select(p => p.Manufacturer)
+                    .Where(m => !string.IsNullOrEmpty(m))
+                    .Distinct()
+                    .OrderBy(m => m);
+                foreach (var m in manufacturers)
+                    cmbManufacturer.Items.Add(m);
                 cmbManufacturer.SelectedIndex = 0;
 
-                // Заполняем категории из БД
-                var categories = DatabaseHelper.GetCategories();
-
-                cmbCategory.Items.Clear();
                 cmbCategory.Items.Add("Все категории");
-                foreach (var category in categories)
-                {
-                    cmbCategory.Items.Add(category);
-                }
+                var categories = allProducts
+                    .Select(p => p.Category)
+                    .Where(c => !string.IsNullOrEmpty(c))
+                    .Distinct()
+                    .OrderBy(c => c);
+                foreach (var c in categories)
+                    cmbCategory.Items.Add(c);
                 cmbCategory.SelectedIndex = 0;
 
-                ApplyFilters();
+                FilterProducts();
+                UpdateCartCount();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки данных из базы:\n{ex.Message}",
-                    "Критическая ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                this.Close(); // Закрываем форму если не можем загрузить данные
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        private void ApplyFilters()
+
+        private void FilterProducts()
         {
-            filteredProducts = currentProducts.ToList();
+            if (allProducts == null) return;
+
+            filteredProducts = allProducts.ToList();
 
             // Поиск
-            if (!string.IsNullOrWhiteSpace(currentSearch) && currentSearch != "Название, артикул, описание...")
+            string search = txtSearch.Text.Trim().ToLower();
+            if (!string.IsNullOrEmpty(search))
             {
                 filteredProducts = filteredProducts.Where(p =>
-                    (p.Name != null && p.Name.IndexOf(currentSearch, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (p.ArticleNumber != null && p.ArticleNumber.IndexOf(currentSearch, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (p.Description != null && p.Description.IndexOf(currentSearch, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (p.Category != null && p.Category.IndexOf(currentSearch, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                    (p.Manufacturer != null && p.Manufacturer.IndexOf(currentSearch, StringComparison.OrdinalIgnoreCase) >= 0))
+                    p.Name.ToLower().Contains(search) ||
+                    p.ArticleNumber.ToLower().Contains(search) ||
+                    (p.Description != null && p.Description.ToLower().Contains(search)))
                     .ToList();
             }
 
-            // Фильтр по производителю
-            if (currentManufacturer != "Все производители")
+            // Производитель
+            if (cmbManufacturer.SelectedIndex > 0)
             {
+                string manufacturer = cmbManufacturer.SelectedItem.ToString();
                 filteredProducts = filteredProducts
-                    .Where(p => p.Manufacturer == currentManufacturer)
+                    .Where(p => p.Manufacturer == manufacturer)
                     .ToList();
             }
 
-            // Фильтр по категории
-            if (currentCategory != "Все категории")
+            // Категория
+            if (cmbCategory.SelectedIndex > 0)
             {
+                string category = cmbCategory.SelectedItem.ToString();
                 filteredProducts = filteredProducts
-                    .Where(p => p.Category == currentCategory)
+                    .Where(p => p.Category == category)
                     .ToList();
             }
 
             // Сортировка
-            switch (currentSort)
+            switch (cmbSort.SelectedItem?.ToString())
             {
                 case "Цена ↑":
                     filteredProducts = filteredProducts.OrderBy(p => p.Price).ToList();
@@ -109,149 +291,63 @@ namespace SportsGoodsApp
                 case "Цена ↓":
                     filteredProducts = filteredProducts.OrderByDescending(p => p.Price).ToList();
                     break;
-                case "Наличие ↓":
-                    filteredProducts = filteredProducts.OrderByDescending(p => p.StockQuantity).ToList();
-                    break;
             }
 
-            // Обновляем статистику
-            UpdateResultsLabel();
+            // Обновляем результаты
+            lblResults.Text = $"Найдено: {filteredProducts.Count} из {allProducts.Count}";
+
+            // Отображаем товары
             DisplayProducts();
-        }
-
-        private void UpdateResultsLabel()
-        {
-            int total = currentProducts.Count;
-            int shown = filteredProducts.Count;
-
-            if (shown == total)
-            {
-                lblResults.Text = $"Показано: {shown} товаров";
-            }
-            else
-            {
-                lblResults.Text = $"Показано: {shown} из {total} товаров";
-            }
-
-            if (shown == 0)
-            {
-                lblResults.Text += " - товары не найдены";
-                lblResults.ForeColor = Color.Red;
-            }
-            else
-            {
-                lblResults.ForeColor = Color.FromArgb(73, 140, 81); // Акцентный цвет
-            }
         }
 
         private void DisplayProducts()
         {
-            flowPanel.SuspendLayout();
             flowPanel.Controls.Clear();
 
-            if (filteredProducts.Count == 0)
+            foreach (var product in filteredProducts)
             {
-                var lblNoResults = new Panel
-                {
-                    Size = new Size(flowPanel.ClientSize.Width - 40, 200),
-                    BackColor = Color.FromArgb(250, 250, 250),
-                    BorderStyle = BorderStyle.FixedSingle,
-                    Margin = new Padding(10)
-                };
-
-                var icon = new Label
-                {
-                    Text = "😕",
-                    Font = new Font("Arial", 48),
-                    Location = new Point(20, 30),
-                    Size = new Size(80, 80),
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    ForeColor = Color.Black
-                };
-
-                var message = new Label
-                {
-                    Text = "Товары не найдены\nПопробуйте изменить критерии поиска",
-                    Location = new Point(120, 40),
-                    Size = new Size(400, 60),
-                    Font = new Font("Comic Sans MS", 12),
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    ForeColor = Color.Black
-                };
-
-                lblNoResults.Controls.AddRange(new Control[] { icon, message });
-                flowPanel.Controls.Add(lblNoResults);
+                Panel card = CreateProductCard(product);
+                flowPanel.Controls.Add(card);
             }
-            else
-            {
-                foreach (var product in filteredProducts)
-                {
-                    var productCard = CreateProductCard(product);
-                    flowPanel.Controls.Add(productCard);
-                }
-            }
-
-            flowPanel.ResumeLayout(true);
         }
 
         private Panel CreateProductCard(Product product)
         {
             Panel card = new Panel
             {
-                Size = new Size(350, 450),
-                Margin = new Padding(15),
+                Size = new Size(300, 400),
+                Margin = new Padding(10),
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = product.StockQuantity > 0 ? Color.White : Color.FromArgb(245, 245, 245),
-                Cursor = Cursors.Hand,
-                Tag = product
+                BackColor = product.StockQuantity > 0 ? Color.White : Color.FromArgb(240, 240, 240)
             };
 
-            // События для подсветки карточки
-            card.MouseEnter += (s, e) =>
-            {
-                card.BorderStyle = BorderStyle.FixedSingle;
-                card.BackColor = Color.FromArgb(250, 250, 250);
-            };
-
-            card.MouseLeave += (s, e) =>
-            {
-                card.BorderStyle = BorderStyle.FixedSingle;
-                card.BackColor = product.StockQuantity > 0 ? Color.White : Color.FromArgb(245, 245, 245);
-            };
-
-            // Изображение товара
+            // Изображение
             PictureBox pbImage = new PictureBox
             {
-                Size = new Size(320, 200),
-                Location = new Point(15, 15),
+                Size = new Size(280, 180),
+                Location = new Point(10, 10),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.White,
-                Cursor = Cursors.Hand
+                BackColor = Color.White
             };
 
             // Загружаем изображение
-            LoadProductImage(pbImage, product);
+            string imagePath = $"Resources/Images/{product.ImagePath}";
+            if (File.Exists(imagePath))
+            {
+                pbImage.Image = Image.FromFile(imagePath);
+            }
+            else
+            {
+                pbImage.BackColor = Color.LightGray;
+            }
 
-            // Название товара
+            // Название
             Label lblName = new Label
             {
-                Text = product.Name ?? "Без названия",
-                Location = new Point(15, 225),
-                Size = new Size(320, 50),
-                Font = new Font("Comic Sans MS", 11, FontStyle.Bold),
-                TextAlign = ContentAlignment.TopLeft,
-                ForeColor = Color.Black
-            };
-
-            // Производитель и категория
-            Label lblInfo = new Label
-            {
-                Text = $"{product.Manufacturer ?? "Не указан"} • {product.Category ?? "Без категории"}",
-                Location = new Point(15, 280),
-                Size = new Size(320, 20),
-                Font = new Font("Comic Sans MS", 9),
-                ForeColor = Color.Gray
+                Text = product.Name,
+                Location = new Point(10, 200),
+                Size = new Size(280, 40),
+                Font = new Font("Comic Sans MS", 10, FontStyle.Bold)
             };
 
             // Цена
@@ -259,252 +355,63 @@ namespace SportsGoodsApp
             Label lblPrice = new Label
             {
                 Text = product.CurrentDiscount > 0
-                    ? $"{finalPrice:C}  ↓{product.CurrentDiscount}%"
+                    ? $"{finalPrice:C} (скидка {product.CurrentDiscount}%)"
                     : $"{product.Price:C}",
-                Location = new Point(15, 305),
-                Size = new Size(320, 25),
-                Font = new Font("Comic Sans MS", 12, FontStyle.Bold),
-                ForeColor = product.CurrentDiscount > 0 ? Color.Red : Color.FromArgb(73, 140, 81) // Акцентный цвет
+                Location = new Point(10, 250),
+                Size = new Size(280, 25),
+                Font = new Font("Comic Sans MS", 11, FontStyle.Bold),
+                ForeColor = accentColor
             };
-
-            // Старая цена при скидке
-            if (product.CurrentDiscount > 0)
-            {
-                Label lblOldPrice = new Label
-                {
-                    Text = $"{product.Price:C}",
-                    Location = new Point(15, 330),
-                    Size = new Size(150, 20),
-                    Font = new Font("Comic Sans MS", 9, FontStyle.Strikeout),
-                    ForeColor = Color.Gray
-                };
-                card.Controls.Add(lblOldPrice);
-            }
 
             // Наличие
-            Panel stockPanel = new Panel
-            {
-                Location = new Point(15, 360),
-                Size = new Size(320, 30),
-                BackColor = product.StockQuantity > 0 ? Color.FromArgb(232, 255, 234) : Color.FromArgb(255, 232, 232)
-            };
-
             Label lblStock = new Label
             {
                 Text = product.StockQuantity > 0
-                    ? $"✅ В наличии: {product.StockQuantity} {product.Unit ?? "шт."}"
-                    : "❌ Нет в наличии",
-                Location = new Point(10, 5),
-                Size = new Size(300, 20),
-                Font = new Font("Comic Sans MS", 9, FontStyle.Bold),
-                ForeColor = product.StockQuantity > 0 ? Color.Green : Color.Red,
-                TextAlign = ContentAlignment.MiddleLeft
+                    ? $"В наличии: {product.StockQuantity} шт."
+                    : "Нет в наличии",
+                Location = new Point(10, 280),
+                Size = new Size(280, 25),
+                ForeColor = product.StockQuantity > 0 ? Color.Green : Color.Red
             };
 
-            stockPanel.Controls.Add(lblStock);
-
-            // Артикул
-            Label lblArticle = new Label
+            // Кнопка в корзину
+            Button btnAdd = new Button
             {
-                Text = $"Арт: {product.ArticleNumber ?? "000000"}",
-                Location = new Point(15, 400),
-                Size = new Size(320, 20),
-                Font = new Font("Comic Sans MS", 8),
-                ForeColor = Color.DarkGray
+                Text = "В корзину",
+                Location = new Point(10, 320),
+                Size = new Size(280, 40),
+                BackColor = accentColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Enabled = product.StockQuantity > 0,
+                Tag = product
+            };
+            btnAdd.Click += (s, e) =>
+            {
+                Cart.AddProduct(product);
+                UpdateCartCount();
+                MessageBox.Show($"Товар добавлен в корзину!\nВсего в корзине: {Cart.TotalItems} товаров",
+                    "Успешно", MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
 
-            // Кнопка быстрого добавления в корзину
-            if (Session.IsClient || Session.IsGuest || Session.IsManager)
-            {
-                Button btnQuickAdd = new Button
-                {
-                    Text = "+",
-                    Location = new Point(290, 395),
-                    Size = new Size(40, 40),
-                    BackColor = Color.FromArgb(73, 140, 81), // Акцентный цвет
-                    ForeColor = Color.White,
-                    FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Comic Sans MS", 16, FontStyle.Bold),
-                    Cursor = Cursors.Hand,
-                    Tag = product
-                };
-                btnQuickAdd.Click += (s, e) => AddToCart(product);
-                card.Controls.Add(btnQuickAdd);
-            }
-
-            card.Controls.AddRange(new Control[]
-            {
-                pbImage, lblName, lblInfo, lblPrice, stockPanel, lblArticle
-            });
-
+            card.Controls.AddRange(new Control[] { pbImage, lblName, lblPrice, lblStock, btnAdd });
             return card;
         }
 
-        private void LoadProductImage(PictureBox pictureBox, Product product)
+        private void UpdateCartCount()
         {
-            try
-            {
-                // Пробуем разные пути к изображениям
-                string[] possiblePaths =
-                {
-                    Path.Combine("Resources/Images/", product.ImagePath),
-                    Path.Combine("Images/", product.ImagePath),
-                    Path.Combine("Resources/", product.ImagePath),
-                    product.ImagePath
-                };
-
-                foreach (var path in possiblePaths)
-                {
-                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
-                    {
-                        pictureBox.Image = Image.FromFile(path);
-                        return;
-                    }
-                }
-
-                // Если изображение не найдено, используем заглушку
-                if (File.Exists("Resources/picture.png"))
-                {
-                    pictureBox.Image = Image.FromFile("Resources/picture.png");
-                }
-                else
-                {
-                    // Создаем простую заглушку
-                    Bitmap bmp = new Bitmap(320, 200);
-                    using (Graphics g = Graphics.FromImage(bmp))
-                    {
-                        g.Clear(Color.White);
-                        g.DrawRectangle(Pens.LightGray, 0, 0, 319, 199);
-                        g.DrawString("Нет\nизображения",
-                            new Font("Comic Sans MS", 16),
-                            Brushes.Gray,
-                            new RectangleF(0, 0, 320, 200),
-                            new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-                    }
-                    pictureBox.Image = bmp;
-                }
-            }
-            catch
-            {
-                // В случае ошибки создаем простую заглушку
-                pictureBox.BackColor = Color.LightGray;
-                pictureBox.Image = null;
-            }
-        }
-
-        private void AddToCart(Product product)
-        {
-            if (product.StockQuantity <= 0)
-            {
-                MessageBox.Show("Товар отсутствует на складе", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            MessageBox.Show($"Товар '{product.Name}' добавлен в корзину\nЦена: {product.Price:C}",
-                "Добавлено в корзину", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        // Обработчики событий
-        private void TxtSearch_Enter(object sender, EventArgs e)
-        {
-            if (txtSearch.Text == "Название, артикул, описание...")
-            {
-                txtSearch.Text = "";
-                txtSearch.ForeColor = Color.Black;
-            }
-        }
-
-        private void TxtSearch_Leave(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(txtSearch.Text))
-            {
-                txtSearch.Text = "Название, артикул, описание...";
-                txtSearch.ForeColor = Color.Gray;
-            }
-        }
-
-        private void TxtSearch_TextChanged(object sender, EventArgs e)
-        {
-            if (txtSearch.Text != "Название, артикул, описание...")
-            {
-                currentSearch = txtSearch.Text.Trim();
-                ApplyFilters();
-            }
-        }
-
-        private void CmbManufacturer_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cmbManufacturer.SelectedItem != null)
-            {
-                currentManufacturer = cmbManufacturer.SelectedItem.ToString();
-                ApplyFilters();
-            }
-        }
-
-        private void CmbCategory_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cmbCategory.SelectedItem != null)
-            {
-                currentCategory = cmbCategory.SelectedItem.ToString();
-                ApplyFilters();
-            }
-        }
-
-        private void CmbSort_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cmbSort.SelectedItem != null)
-            {
-                currentSort = cmbSort.SelectedItem.ToString();
-                ApplyFilters();
-            }
-        }
-
-        private void BtnReset_Click(object sender, EventArgs e)
-        {
-            txtSearch.Text = "Название, артикул, описание...";
-            txtSearch.ForeColor = Color.Gray;
-            cmbManufacturer.SelectedIndex = 0;
-            cmbCategory.SelectedIndex = 0;
-            cmbSort.SelectedIndex = 0;
-
-            currentSearch = "";
-            currentManufacturer = "Все производители";
-            currentCategory = "Все категории";
-            currentSort = "По умолчанию";
-
-            ApplyFilters();
-        }
-
-        private void BtnAddToCart_Click(object sender, EventArgs e)
-        {
-            MessageBox.Show("Выберите товар для добавления в корзину",
-                "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void ProductsForm_Load(object sender, EventArgs e)
-        {
-            // Центрируем элементы при загрузке
-            if (lblResults != null)
-            {
-                lblResults.Left = (topPanel.Width - lblResults.Width) / 2;
-            }
+            lblCartCount.Text = $"Корзина: {Cart.TotalItems} товаров";
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
 
-            // Адаптация при изменении размера окна
-            if (lblResults != null && topPanel != null)
+            if (logoPictureBox != null)
             {
-                lblResults.Left = (topPanel.Width - lblResults.Width) / 2;
-            }
-
-
-            if (flowPanel != null && filteredProducts != null)
-            {
-                DisplayProducts();
+                logoPictureBox.Location = new Point(
+                    this.ClientSize.Width - logoPictureBox.Width - 20,
+                    10);
             }
         }
     }

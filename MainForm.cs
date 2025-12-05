@@ -1,139 +1,148 @@
 ﻿using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace SportsGoodsApp
 {
-    public class MainForm : Form
+    public class MainForm : BaseForm
     {
         private Button btnProducts;
         private Button btnOrders;
         private Button btnManageProducts;
+        private Button btnCart;
         private Button btnLogout;
         private Label lblUserInfo;
+        private Label lblWelcome;
 
         public MainForm()
         {
-            SetupMainForm();
+            InitializeForm();
         }
 
-        private void SetupMainForm()
+        private void InitializeForm()
         {
-            // Настройка формы
-            this.Text = "ООО Спортивные товары - Главная";
-            this.Font = new Font("Comic Sans MS", 10);
-            this.BackColor = Color.White;
-            this.Size = new Size(800, 600);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.MinimumSize = new Size(800, 600);
+            this.Text = $"ООО Спортивные товары - {Session.CurrentUser?.Role ?? "Гость"}";
 
-            // Заголовок с логотипом
-            Panel headerPanel = new Panel
-            {
-                BackColor = Color.FromArgb(118, 227, 131),
-                Height = 80,
-                Dock = DockStyle.Top
-            };
-            this.Controls.Add(headerPanel);
-
-            // Информация о пользователе (правый верхний угол)
+            // Информация о пользователе
             lblUserInfo = new Label
             {
-                Text = Session.CurrentUser?.FullName ?? "Гость",
+                Text = $"👤 {Session.CurrentUser?.FullName ?? "Гость"}",
                 Font = new Font("Comic Sans MS", 10, FontStyle.Bold),
                 ForeColor = Color.Black,
-                TextAlign = ContentAlignment.MiddleRight,
-                AutoSize = false, // Изменяем на false для лучшего контроля
-                Size = new Size(200, 30)
+                AutoSize = true
             };
 
-            // Добавляем на панель
-            headerPanel.Controls.Add(lblUserInfo);
-
-            // Обновляем позицию после добавления
-            this.Load += (s, e) =>
+            // Приветствие
+            lblWelcome = new Label
             {
-                lblUserInfo.Location = new Point(
-                    headerPanel.Width - lblUserInfo.Width - 20,
-                    (headerPanel.Height - lblUserInfo.Height) / 2);
+                Text = $"Добро пожаловать, {Session.CurrentUser?.FullName ?? "Гость"}!",
+                Font = new Font("Comic Sans MS", 14, FontStyle.Bold),
+                ForeColor = accentColor,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false,
+                Size = new Size(600, 40)
             };
 
-            // Кнопки меню - делаем центрированными
+            // Кнопки меню
             int centerX = (this.ClientSize.Width - 250) / 2;
             int buttonY = 150;
             int buttonWidth = 250;
             int buttonHeight = 50;
-            int buttonSpacing = 20;
+            int buttonSpacing = 15;
 
             // Товары (для всех)
-            btnProducts = new Button
-            {
-                Text = "📦 Просмотр товаров",
-                Location = new Point(centerX, buttonY),
-                Size = new Size(buttonWidth, buttonHeight),
-                BackColor = Color.FromArgb(73, 140, 81),
-                ForeColor = Color.White,
-                Font = new Font("Comic Sans MS", 12, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
+            btnProducts = CreateMenuButton("📦 Просмотр товаров", centerX, buttonY, buttonWidth, buttonHeight);
             btnProducts.Click += BtnProducts_Click;
-            this.Controls.Add(btnProducts);
-
             buttonY += buttonHeight + buttonSpacing;
 
-            // Заказы (только для клиента и менеджера)
-            if (Session.CurrentUser?.Role == "Client" || Session.CurrentUser?.Role == "Manager")
+            // Заказы (для клиента и менеджера)
+            if (Session.CurrentUser?.Role == "Клиент" || Session.CurrentUser?.Role == "Менеджер")
             {
-                btnOrders = new Button
-                {
-                    Text = "🛒 Мои заказы",
-                    Location = new Point(centerX, buttonY),
-                    Size = new Size(buttonWidth, buttonHeight),
-                    BackColor = Color.FromArgb(73, 140, 81),
-                    ForeColor = Color.White,
-                    Font = new Font("Comic Sans MS", 12, FontStyle.Bold),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
+                btnOrders = CreateMenuButton("📋 Мои заказы", centerX, buttonY, buttonWidth, buttonHeight);
                 btnOrders.Click += BtnOrders_Click;
-                this.Controls.Add(btnOrders);
                 buttonY += buttonHeight + buttonSpacing;
             }
 
-            // Управление товарами (только для администратора)
-            if (Session.CurrentUser?.Role == "Admin")
+            // Управление товарами (для администратора)
+            if (Session.CurrentUser?.Role == "Администратор")
             {
-                btnManageProducts = new Button
-                {
-                    Text = "⚙️ Управление товарами",
-                    Location = new Point(centerX, buttonY),
-                    Size = new Size(buttonWidth, buttonHeight),
-                    BackColor = Color.FromArgb(73, 140, 81),
-                    ForeColor = Color.White,
-                    Font = new Font("Comic Sans MS", 12, FontStyle.Bold),
-                    FlatStyle = FlatStyle.Flat,
-                    Cursor = Cursors.Hand
-                };
+                btnManageProducts = CreateMenuButton("⚙️ Управление товарами", centerX, buttonY, buttonWidth, buttonHeight);
                 btnManageProducts.Click += BtnManageProducts_Click;
-                this.Controls.Add(btnManageProducts);
                 buttonY += buttonHeight + buttonSpacing;
             }
 
-            // Кнопка выхода (внизу слева)
+            // Корзина (для всех кроме администратора)
+            if (Session.CurrentUser?.Role != "Администратор")
+            {
+                btnCart = CreateMenuButton("🛒 Корзина", centerX, buttonY, buttonWidth, buttonHeight);
+                btnCart.Click += BtnCart_Click;
+                buttonY += buttonHeight + buttonSpacing;
+            }
+
+            // Кнопка выхода
             btnLogout = new Button
             {
                 Text = "Выйти",
-                Location = new Point(20, this.ClientSize.Height - 70),
                 Size = new Size(120, 40),
-                BackColor = Color.LightGray,
-                ForeColor = Color.Black,
+                Location = new Point(20, this.ClientSize.Height - 70),
                 Font = new Font("Comic Sans MS", 10),
+                BackColor = secondaryColor,
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnLogout.Click += BtnLogout_Click;
+
+            // Добавляем контролы
+            this.Controls.AddRange(new Control[]
+            {
+                lblUserInfo, lblWelcome, btnProducts, btnOrders,
+                btnManageProducts, btnCart, btnLogout
+            }.Where(c => c != null).ToArray());
+        }
+
+        private Button CreateMenuButton(string text, int x, int y, int width, int height)
+        {
+            return new Button
+            {
+                Text = text,
+                Location = new Point(x, y),
+                Size = new Size(width, height),
+                Font = new Font("Comic Sans MS", 12, FontStyle.Bold),
+                BackColor = accentColor,
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
-            btnLogout.Click += BtnLogout_Click;
-            this.Controls.Add(btnLogout);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+
+            // Центрируем элементы
+            int centerX = (this.ClientSize.Width - 250) / 2;
+
+            if (btnProducts != null) btnProducts.Left = centerX;
+            if (btnOrders != null) btnOrders.Left = centerX;
+            if (btnManageProducts != null) btnManageProducts.Left = centerX;
+            if (btnCart != null) btnCart.Left = centerX;
+
+            if (lblWelcome != null)
+            {
+                lblWelcome.Left = (this.ClientSize.Width - lblWelcome.Width) / 2;
+                lblWelcome.Top = 80;
+            }
+
+            if (lblUserInfo != null)
+            {
+                lblUserInfo.Location = new Point(20, 20);
+            }
+
+            if (btnLogout != null)
+            {
+                btnLogout.Top = this.ClientSize.Height - 70;
+            }
         }
 
         private void BtnProducts_Click(object sender, EventArgs e)
@@ -144,21 +153,23 @@ namespace SportsGoodsApp
 
         private void BtnOrders_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("Форма заказов в разработке", "Информация",
+            // Форма заказов
+            MessageBox.Show("Функционал заказов в разработке", "Информация",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void BtnCart_Click(object sender, EventArgs e)
+        {
+            CartForm cartForm = new CartForm();
+            cartForm.ShowDialog();
         }
 
         private void BtnManageProducts_Click(object sender, EventArgs e)
         {
-            if (Session.CurrentUser?.Role == "Admin")
+            if (Session.CurrentUser?.Role == "Администратор")
             {
                 ManageProductsForm manageForm = new ManageProductsForm();
                 manageForm.ShowDialog();
-            }
-            else
-            {
-                MessageBox.Show("Доступ запрещен", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -170,34 +181,7 @@ namespace SportsGoodsApp
             if (result == DialogResult.Yes)
             {
                 Session.CurrentUser = null;
-
-                // Возвращаемся к окну входа
-                Form1 loginForm = new Form1();
-                loginForm.Show();
                 this.Close();
-            }
-        }
-
-        protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
-
-            if (btnLogout != null)
-            {
-                btnLogout.Location = new Point(20, this.ClientSize.Height - 70);
-            }
-
-            // Центрируем кнопки при изменении размера окна
-            if (btnProducts != null)
-            {
-                int centerX = (this.ClientSize.Width - btnProducts.Width) / 2;
-                btnProducts.Location = new Point(centerX, btnProducts.Location.Y);
-
-                if (btnOrders != null)
-                    btnOrders.Location = new Point(centerX, btnOrders.Location.Y);
-
-                if (btnManageProducts != null)
-                    btnManageProducts.Location = new Point(centerX, btnManageProducts.Location.Y);
             }
         }
     }

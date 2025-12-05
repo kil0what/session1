@@ -2,110 +2,61 @@
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
 
 namespace SportsGoodsApp
 {
     public partial class Form1 : Form
     {
+        // Элементы управления уже объявлены в Form1.Designer.cs
+        // НЕ объявляйте их здесь снова!
+
         private Timer blockTimer;
         private string generatedCaptcha;
         private bool captchaRequired = false;
         private int blockSecondsRemaining = 0;
         private int failedAttempts = 0;
         private DateTime? blockedUntil = null;
-        private PictureBox logoPictureBox;
 
         public Form1()
         {
             InitializeComponent();
 
-            // УБИРАЕМ SetupForm() отсюда - он конфликтует с дизайнером
-            // SetupForm();
+            // Инициализируем таймер
+            blockTimer = new Timer();
+            blockTimer.Interval = 1000;
+            blockTimer.Tick += BlockTimer_Tick;
 
-            LoadLogo(); // Оставляем только логотип
-            SetupEventHandlers(); // Добавляем обработчики
-            ApplyStyles(); // Применяем стили БЕЗ изменения позиций
+            // Настройка формы
+            SetupForm();
         }
 
-        private void LoadLogo()
+        private void SetupForm()
         {
-            try
-            {
-                // Создаем PictureBox для логотипа
-                logoPictureBox = new PictureBox
-                {
-                    Size = new Size(200, 60),
-                    Location = new Point((this.ClientSize.Width - 200) / 2, 20),
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Anchor = AnchorStyles.Top
-                };
+            // Настройка стилей
+            this.Text = "ООО Спортивные товары - Вход";
+            this.BackColor = Color.White;
+            this.Font = new Font("Comic Sans MS", 10);
 
-                // Если файл логотипа существует, загружаем его
-                if (System.IO.File.Exists("Resources/logo.png"))
-                {
-                    logoPictureBox.Image = Image.FromFile("Resources/logo.png");
-                }
-                else
-                {
-                    //
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки логотипа: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
+            // Настройка кнопок
+            btnLogin.BackColor = Color.FromArgb(73, 140, 81);
+            btnLogin.ForeColor = Color.White;
+            btnLogin.FlatStyle = FlatStyle.Flat;
+            btnLogin.Font = new Font("Comic Sans MS", 10, FontStyle.Bold);
 
-        private void SetupEventHandlers()
-        {
-            // Привязываем обработчики к кнопкам
-            btnLogin.Click += BtnLogin_Click;
-            btnGuest.Click += BtnGuest_Click;
-            btnRefreshCaptcha.Click += BtnRefreshCaptcha_Click;
+            btnGuest.BackColor = Color.FromArgb(118, 227, 131);
+            btnGuest.ForeColor = Color.Black;
+            btnGuest.FlatStyle = FlatStyle.Flat;
+            btnGuest.Font = new Font("Comic Sans MS", 10);
+
+            btnRefreshCaptcha.BackColor = Color.LightGray;
+            btnRefreshCaptcha.FlatStyle = FlatStyle.Flat;
 
             // Скрываем CAPTCHA при запуске
             picCaptcha.Visible = false;
             txtCaptcha.Visible = false;
             btnRefreshCaptcha.Visible = false;
-
-            // Инициализируем таймер
-            blockTimer = new Timer();
-            blockTimer.Interval = 1000;
-            blockTimer.Tick += BlockTimer_Tick;
-        }
-
-        private void ApplyStyles()
-        {
-            // Применяем только стили, НЕ меняем расположение!
-
-            // Форма
-            this.Text = "ООО Спортивные товары - Вход";
-            this.Font = new Font("Comic Sans MS", 10);
-            this.BackColor = Color.White;
-
-            // Кнопка Войти
-            btnLogin.BackColor = Color.FromArgb(73, 140, 81); // Акцентный цвет
-            btnLogin.ForeColor = Color.White;
-            btnLogin.FlatStyle = FlatStyle.Flat;
-            btnLogin.Font = new Font("Comic Sans MS", 10, FontStyle.Bold);
-
-            // Кнопка Гость
-            btnGuest.BackColor = Color.FromArgb(118, 227, 131); // Дополнительный цвет
-            btnGuest.ForeColor = Color.Black;
-            btnGuest.FlatStyle = FlatStyle.Flat;
-            btnGuest.Font = new Font("Comic Sans MS", 10);
-
-            // Кнопка обновления CAPTCHA
-            btnRefreshCaptcha.BackColor = Color.LightGray;
-            btnRefreshCaptcha.FlatStyle = FlatStyle.Flat;
-
-            // Поля ввода
-            txtLogin.Font = new Font("Comic Sans MS", 10);
-            txtPassword.Font = new Font("Comic Sans MS", 10);
-            txtCaptcha.Font = new Font("Comic Sans MS", 10);
         }
 
         // ВХОД
@@ -189,16 +140,18 @@ namespace SportsGoodsApp
         {
             try
             {
-                // Проверяем подключение к базе данных
-                bool canConnect = Task.Run(() => DatabaseHelper.TestConnectionAsync()).GetAwaiter().GetResult();
+                // Проверяем подключение к базе данных (синхронно)
+                bool canConnect = DatabaseHelper.TestConnection();
 
                 if (!canConnect)
                 {
-                    // Если не можем подключиться к БД, показываем сообщение
-                    MessageBox.Show("Не удалось подключиться к базе данных.\nПроверьте:\n1. Установлен ли SQL Server LocalDB\n2. Существует ли база SportsGoodsDB_Cyrillic\n3. Есть ли таблица Users с данными",
+                    MessageBox.Show("Не удалось подключиться к базе данных.\nПроверьте:\n1. Установлен ли SQL Server LocalDB\n2. Существует ли база SportsGoodsDB_Cyrillic\n3. Выполнен ли скрипт создания БД",
                         "Ошибка подключения", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
+
+                // Импортируем пользователей если таблица пустая
+                DatabaseHelper.ImportUsersIfNeeded();
 
                 // Пробуем авторизоваться через базу данных
                 var user = DatabaseHelper.AuthenticateUser(login, password);
@@ -209,45 +162,40 @@ namespace SportsGoodsApp
 
                     // Логирование для отладки
                     Console.WriteLine($"Успешный вход: {user.FullName}, Роль: {user.Role}");
+
+                    // Можно добавить логирование в файл
+                    try
+                    {
+                        string logMessage = $"{DateTime.Now}: Успешный вход - {user.FullName} ({user.Role})";
+                        File.AppendAllText("login_log.txt", logMessage + Environment.NewLine);
+                    }
+                    catch { /* Игнорируем ошибки логирования */ }
+
                     return true;
                 }
                 else
                 {
-                    // Для отладки: попробуем вывести что есть в базе
+                    // Неудачная попытка входа
+                    Console.WriteLine($"Неудачная попытка входа: {login}");
+
+                    // Логирование неудачных попыток
                     try
                     {
-                        using (SqlConnection connection = new SqlConnection(DatabaseHelper.connectionString))
-                        {
-                            connection.Open();
-                            string query = "SELECT Login, Password FROM Users";
-                            using (SqlCommand cmd = new SqlCommand(query, connection))
-                            using (SqlDataReader reader = cmd.ExecuteReader())
-                            {
-                                string usersInfo = "Доступные пользователи в БД:\n";
-                                while (reader.Read())
-                                {
-                                    usersInfo += $"Логин: {reader["Login"]}, Пароль: {reader["Password"]}\n";
-                                }
-                                Console.WriteLine(usersInfo);
-                            }
-                        }
+                        string logMessage = $"{DateTime.Now}: Неудачная попытка входа - {login}";
+                        File.AppendAllText("login_log.txt", logMessage + Environment.NewLine);
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Ошибка при проверке БД: {ex.Message}");
-                    }
+                    catch { /* Игнорируем ошибки логирования */ }
 
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при авторизации: {ex.Message}\nПроверьте подключение к базе данных.",
+                MessageBox.Show($"Ошибка при авторизации: {ex.Message}\nДетали: {ex.InnerException?.Message}",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
         }
-        // ГОСТЬ
         private void BtnGuest_Click(object sender, EventArgs e)
         {
             Session.CurrentUser = new User
